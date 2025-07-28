@@ -68,7 +68,9 @@ Enter the desired number of valid results to find: 10
         Price vs Capacity scatter plot
 
     Log file: analysis_log.md
+[![Figure-1.png](https://i.postimg.cc/BQy33Wrp/Figure-1.png)](https://postimg.cc/xcKhGZTN)
 
+[![Figure-2.png](https://i.postimg.cc/Y2sZG6dq/Figure-2.png)](https://postimg.cc/Z06VXdk1)
 ### 📊 Output Graphs
 
     Bar Chart: Top SSDs sorted by price-per-terabyte.
