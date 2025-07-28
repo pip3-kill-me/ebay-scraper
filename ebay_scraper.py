@@ -27,6 +27,29 @@ import random
 DELAY_TIME_BASE = 3
 DELAY_BETWEEN_REQUESTS = DELAY_TIME_BASE + random.uniform(0, 2)
 
+def extract_best_capacity(title: str) -> float | None:
+    """
+    Extracts the most relevant SSD capacity from a product title.
+    Prioritizes TB values over GB and returns the largest match.
+    """
+    # Normalize title (replace slashes/dashes, lowercase)
+    normalized = title.replace("/", " ").replace("-", " ").replace("_", " ").lower()
+
+    # Find all GB/TB capacity candidates
+    matches = re.findall(r'(\d+\.?\d*)\s*(tb|gb)', normalized)
+    if not matches:
+        return None
+
+    # Parse matches into float TB values
+    tb_values = [float(val) for val, unit in matches if unit == 'tb']
+    gb_values = [float(val) / 1000.0 for val, unit in matches if unit == 'gb']
+
+    if tb_values:
+        return max(tb_values)
+    elif gb_values:
+        return max(gb_values)
+    return None
+
 def get_user_input():
     """Gets all necessary search criteria from the user."""
     search_term = input("Enter the product to search for on eBay (e.g., 'nvme ssd'): ")
@@ -139,9 +162,9 @@ def parse_variations_from_product_page(html_content, base_title):
                 continue
 
             # Now analyze this specific variation
-            capacity_regex = re.compile(r'(\d+\.?\d*)\s*(TB|GB)', re.IGNORECASE)
-            match = capacity_regex.search(full_title)
-            if not match: continue
+            capacity_tb = extract_best_capacity(full_title)
+            if not capacity_tb:
+                continue
 
             value_str, unit = match.groups()
             capacity_tb = float(value_str) if unit.upper() == 'TB' else float(value_str) / 1000.0
@@ -163,24 +186,20 @@ def parse_variations_from_product_page(html_content, base_title):
 
 def calculate_price_per_tb(listing):
     """Processes a single-price listing to calculate the price per terabyte."""
-    capacity_regex = re.compile(r'(\d+\.?\d*)\s*(TB|GB)', re.IGNORECASE)
-    match = capacity_regex.search(listing['title'])
-    if not match: return None
-
-    value_str, unit = match.groups()
-    capacity_tb = float(value_str) if unit.upper() == 'TB' else float(value_str) / 1000.0
+    capacity_tb = extract_best_capacity(listing['title'])
+    if not capacity_tb or capacity_tb <= 0:
+        return None
 
     price_match = re.search(r'\d{1,3}(?:,?\d{3})*(?:\.\d{2})?', listing['price_str'])
-    if not price_match: return None
+    if not price_match:
+        return None
+
     price = float(price_match.group(0).replace(',', ''))
 
-    if capacity_tb > 0:
-        price_per_tb = price / capacity_tb
-        listing['price_usd'] = price
-        listing['capacity_tb'] = capacity_tb
-        listing['price_per_tb'] = price_per_tb
-        return listing
-    return None
+    listing['price_usd'] = price
+    listing['capacity_tb'] = capacity_tb
+    listing['price_per_tb'] = price / capacity_tb
+    return listing
 
 def plot_results(listings_df, min_price_tb, max_price_tb):
     """Displays two graphs based on the final, filtered results."""
